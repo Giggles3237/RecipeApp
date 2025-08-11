@@ -1,0 +1,23 @@
+{
+  "name": "recipe-app-server",
+  "version": "1.0.0",
+  "description": "Backend for Recipe & Grocery Management App",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "@brandonrjguth/recipe-scraper": "^2.5.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.18.2",
+    "mysql2": "^3.9.0",
+    "node-fetch": "^3.3.2",
+    "openai": "^5.12.0",
+    "recipe-ingredient-parser-v3": "^1.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

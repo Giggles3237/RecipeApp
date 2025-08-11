@@ -1,0 +1,308 @@
+.grocery-list-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.grocery-header {
+  margin-bottom: 30px;
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.back-button {
+  background-color: #6b7280;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.back-button:hover {
+  background-color: #4b5563;
+}
+
+.grocery-header h2 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.scale-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.scale-controls label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 14px;
+}
+
+.scale-input {
+  padding: 8px 12px;
+  border: 2px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  width: 80px;
+  text-align: center;
+  transition: border-color 0.2s ease;
+}
+
+.scale-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.scale-info {
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.grocery-summary {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.summary-item {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.check-all-btn {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.check-all-btn:hover {
+  background-color: #2563eb;
+}
+
+.progress-container {
+  margin-bottom: 20px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #10b981;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.loading-state,
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: #6b7280;
+}
+
+.grocery-list {
+  margin-bottom: 30px;
+}
+
+.category-section {
+  margin-bottom: 24px;
+}
+
+.category-header {
+  color: #1f2937;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.items-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.grocery-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s ease;
+}
+
+.grocery-item:hover {
+  background-color: #f9fafb;
+}
+
+.grocery-item.checked {
+  background-color: #f0fdf4;
+}
+
+.item-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.item-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.item-name {
+  flex: 1;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.item-quantity {
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 80px;
+  text-align: right;
+}
+
+.needs-review {
+  color: #f59e0b;
+  font-size: 16px;
+  cursor: help;
+}
+
+.actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 30px;
+}
+
+.actions button {
+  background-color: #6b7280;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.actions button:hover {
+  background-color: #4b5563;
+}
+
+.actions button:first-child {
+  background-color: #3b82f6;
+}
+
+.actions button:first-child:hover {
+  background-color: #2563eb;
+}
+
+.print-button {
+  background-color: #10b981 !important;
+}
+
+.print-button:hover {
+  background-color: #059669 !important;
+}
+
+.regenerate-button {
+  background-color: #f59e0b !important;
+}
+
+.regenerate-button:hover {
+  background-color: #d97706 !important;
+}
+
+/* Inline sources are styled inline in component with inline style. Add clear-button styling */
+.clear-button {
+  background-color: #ef4444 !important;
+}
+.clear-button:hover {
+  background-color: #dc2626 !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .grocery-list-container {
+    padding: 16px;
+  }
+  
+  .header-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .back-button {
+    align-self: flex-start;
+  }
+  
+  .scale-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .scale-input {
+    width: 100%;
+  }
+  
+  .grocery-summary {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .actions {
+    flex-direction: column;
+  }
+  
+  .actions button {
+    width: 100%;
+  }
+}
