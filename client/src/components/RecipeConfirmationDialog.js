@@ -48,8 +48,7 @@ export default function RecipeConfirmationDialog({
       }
       const payload = { ...editingRecipe, force };
       const response = await confirmRecipe(payload);
-      console.log('Recipe confirmed successfully:', response);
-      onConfirm();
+      onConfirm(response);
     } catch (error) {
       console.error('Error confirming recipe:', error);
       // More detailed error logging
@@ -59,7 +58,7 @@ export default function RecipeConfirmationDialog({
       if (error.stack) {
         console.error('Error stack:', error.stack);
       }
-      alert('Failed to save recipe. Please try again.');
+      alert(`Failed to save recipe: ${error.message || 'please try again.'}`);
     } finally {
       setLoading(false);
     }
@@ -97,6 +96,8 @@ export default function RecipeConfirmationDialog({
     updatedRecipe.ingredients[index] = { 
       ...updatedRecipe.ingredients[index], 
       [field]: value,
+      // Editing the name means it may no longer be the matched ingredient
+      ...(field === 'name' ? { ingredientId: null } : {}),
       needsReview: false
     };
     setEditingRecipe(updatedRecipe);
@@ -185,7 +186,7 @@ export default function RecipeConfirmationDialog({
     <div className="recipe-confirmation-overlay">
       <div className="recipe-confirmation-dialog">
         <div className="recipe-confirmation-header">
-          <h2>Confirm Recipe Import</h2>
+          <h2>{recipe.id ? 'Review Changes' : 'Review Recipe'}</h2>
           <button 
             className="close-button" 
             onClick={onClose}
@@ -208,9 +209,29 @@ export default function RecipeConfirmationDialog({
                 />
               )}
             </div>
+            <label className="servings-row">
+              Servings
+              <input
+                type="number"
+                min="1"
+                value={editingRecipe.servings || ''}
+                onChange={(e) => setEditingRecipe({ ...editingRecipe, servings: e.target.value })}
+                placeholder="4"
+              />
+            </label>
             {recipe.sourceUrl && (
               <p className="source-url">Source: <a href={recipe.sourceUrl} target="_blank" rel="noopener noreferrer">{recipe.sourceUrl}</a></p>
             )}
+          </div>
+
+          <div className={`ai-banner ${recipe.aiAssisted ? 'ai-on' : 'ai-off'}`}>
+            {recipe.aiAssisted
+              ? `✨ AI checked ${editingRecipe.ingredients.length} ingredients against your saved list. ` +
+                (editingRecipe.ingredients.filter(isNewIngredient).length
+                  ? 'Highlighted items are new — check the name before saving; they will be added to your list.'
+                  : 'Everything matched something you already have.')
+              : 'Basic matching was used (AI unavailable). Please double-check names and units.'}
+            {recipe.aiNotes && <div className="ai-notes">Note: {recipe.aiNotes}</div>}
           </div>
 
           <div className="recipe-section">
@@ -253,7 +274,7 @@ export default function RecipeConfirmationDialog({
                       value={ingredient.modifier || ''}
                       onChange={(e) => handleIngredientChange(index, 'modifier', e.target.value)}
                       className="ingredient-modifier-input"
-                      placeholder="Modifier (e.g., minced, peeled and chopped)"
+                      placeholder="Prep (minced, diced…)"
                     />
                   </div>
                   <div className="ingredient-actions">
@@ -278,9 +299,13 @@ export default function RecipeConfirmationDialog({
                   </div>
                   {ingredient.originalName && ingredient.originalName !== ingredient.name && (
                     <div className="original-name">
-                      Original: {ingredient.originalName}
+                      From: “{ingredient.originalName}”
+                      {ingredient.ingredientId && !isNewIngredient(ingredient) && (
+                        <> → matched to saved <strong>{ingredient.name}</strong></>
+                      )}
                     </div>
                   )}
+                  {ingredient.aiNote && <div className="ai-note">AI: {ingredient.aiNote}</div>}
                 </div>
               ))}
             </div>
@@ -388,7 +413,7 @@ export default function RecipeConfirmationDialog({
             onClick={handleConfirm}
             disabled={loading}
           >
-            {loading ? 'Saving...' : 'Import Recipe'}
+            {loading ? 'Saving...' : recipe.id ? 'Save Changes' : 'Save Recipe'}
           </button>
         </div>
       </div>

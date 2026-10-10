@@ -5,8 +5,31 @@ import {
   fetchIngredients, 
   fetchIngredientCategories,
   createMeasurement, 
-  createIngredient 
+  createIngredient,
+  addIngredientAlias,
+  addMeasurementAlias
 } from '../services/api';
+
+// When the server says "this looks like an existing one", offer to save it as another
+// name for the existing entry instead of creating a near-duplicate.
+async function handleDuplicate(err, newName, { addAlias, retryForce, label }) {
+  if (!err || err.status !== 409 || !err.data || !err.data.duplicateOf) return false;
+  const { duplicateOf, id, reason, exact } = err.data;
+  const asAlias = window.confirm(
+    `"${newName}" looks like the existing ${label} "${duplicateOf}"` +
+      (reason ? ` (${reason})` : '') +
+      `.\n\nOK: save "${newName}" as another name for "${duplicateOf}" (recommended)\nCancel: other options`
+  );
+  if (asAlias) {
+    if (newName.toLowerCase().trim() !== duplicateOf.toLowerCase()) await addAlias(id, newName);
+    return true;
+  }
+  if (!exact && window.confirm(`Create "${newName}" as a separate ${label} anyway?`)) {
+    await retryForce();
+    return true;
+  }
+  return 'cancelled';
+}
 
 export default function StandardizationAdmin() {
   const navigate = useNavigate();
@@ -55,11 +78,22 @@ export default function StandardizationAdmin() {
 
   const handleMeasurementSubmit = async (e) => {
     e.preventDefault();
+    const data = {
+      ...measurementForm,
+      base_conversion: parseFloat(measurementForm.base_conversion)
+    };
     try {
-      await createMeasurement({
-        ...measurementForm,
-        base_conversion: parseFloat(measurementForm.base_conversion)
-      });
+      try {
+        await createMeasurement(data);
+      } catch (err) {
+        const handled = await handleDuplicate(err, data.name, {
+          label: 'unit',
+          addAlias: addMeasurementAlias,
+          retryForce: () => createMeasurement({ ...data, force: true }),
+        });
+        if (!handled) throw err;
+        if (handled === 'cancelled') return; // keep the form so they can edit the name
+      }
       setMeasurementForm({
         name: '',
         category: 'volume',
@@ -70,13 +104,24 @@ export default function StandardizationAdmin() {
       loadData(); // Reload data
     } catch (error) {
       console.error('Error creating measurement:', error);
+      alert(error.message);
     }
   };
 
   const handleIngredientSubmit = async (e) => {
     e.preventDefault();
     try {
-      await createIngredient(ingredientForm);
+      try {
+        await createIngredient(ingredientForm);
+      } catch (err) {
+        const handled = await handleDuplicate(err, ingredientForm.name, {
+          label: 'ingredient',
+          addAlias: addIngredientAlias,
+          retryForce: () => createIngredient({ ...ingredientForm, force: true }),
+        });
+        if (!handled) throw err;
+        if (handled === 'cancelled') return; // keep the form so they can edit the name
+      }
       setIngredientForm({
         name: '',
         category: 'other',
@@ -85,6 +130,7 @@ export default function StandardizationAdmin() {
       loadData(); // Reload data
     } catch (error) {
       console.error('Error creating ingredient:', error);
+      alert(error.message);
     }
   };
 

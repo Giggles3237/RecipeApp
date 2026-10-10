@@ -1,24 +1,12 @@
-const mysql = require('mysql2/promise');
-
-const dbConfig = {
-  host: 'sales-db.mysql.database.azure.com',
-  user: 'clasko',
-  password: 'your_clasko_password', // Replace with your actual password
-  database: 'recipe_db',
-  ssl: {
-    rejectUnauthorized: false
-  }
-};
+// Prints the first few recipes as stored. Uses the app's settings (server/.env).
+// Run: node check-data.js
+const pool = require('./config/db');
 
 async function checkData() {
-  let connection;
-  
   try {
-    connection = await mysql.createConnection(dbConfig);
-    
     console.log('Checking recipes table data...');
-    const [rows] = await connection.execute('SELECT * FROM recipes LIMIT 3');
-    
+    const [rows] = await pool.query('SELECT * FROM recipes LIMIT 3');
+
     console.log('Found', rows.length, 'recipes:');
     rows.forEach((row, index) => {
       console.log(`\nRecipe ${index + 1}:`);
@@ -29,14 +17,11 @@ async function checkData() {
       console.log('Tags (raw):', row.tags);
       console.log('---');
     });
-    
   } catch (error) {
     console.error('Error:', error.message);
   } finally {
-    if (connection) {
-      await connection.end();
-    }
+    await pool.end();
   }
 }
 
-checkData(); 
+checkData();

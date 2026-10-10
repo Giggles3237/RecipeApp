@@ -500,3 +500,49 @@
     align-self: flex-start;
   }
 }
+
+/* AI review additions */
+.ai-banner {
+  margin: 16px 0 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+.ai-banner.ai-on { background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; }
+.ai-banner.ai-off { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+.ai-notes { margin-top: 6px; font-style: italic; }
+.ai-note { font-size: 0.8rem; color: #4f46e5; margin-top: 4px; }
+.servings-row { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 0.9rem; color: #374151; }
+.servings-row input { width: 70px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px; }
+@media (max-width: 600px) {
+  .recipe-confirmation-overlay { padding: 0; }
+  .recipe-confirmation-dialog { max-height: 100vh; border-radius: 0; }
+  .ingredient-content { flex-wrap: wrap; }
+}
+
+/* Compact ingredient rows on phones: qty | unit | name on one line, prep note below */
+.ingredient-modifier-input {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background-color: white;
+  color: #4b5563;
+}
+@media (max-width: 600px) {
+  .recipe-confirmation-dialog .ingredient-item { flex-direction: column; gap: 6px; padding: 10px; }
+  .recipe-confirmation-dialog .ingredient-content {
+    display: grid;
+    grid-template-columns: 56px 72px 1fr;
+    gap: 6px;
+    width: 100%;
+  }
+  .recipe-confirmation-dialog .ingredient-quantity-input,
+  .recipe-confirmation-dialog .ingredient-unit-input,
+  .recipe-confirmation-dialog .ingredient-name-input { width: auto; min-width: 0; padding: 8px; font-size: 16px; }
+  .recipe-confirmation-dialog .ingredient-modifier-input { grid-column: 1 / -1; font-size: 16px; }
+  .recipe-confirmation-dialog .ingredient-actions,
+  .recipe-confirmation-dialog .ingredient-status { flex-direction: row; align-items: center; width: 100%; }
+  .recipe-confirmation-dialog .ingredient-actions { justify-content: space-between; }
+  .recipe-confirmation-dialog .original-name { font-size: 0.8rem; }
+}

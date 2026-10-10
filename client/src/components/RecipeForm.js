@@ -1,7 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { createRecipe, getRecipe, updateRecipe, parseRecipeWithAI, scrapeRecipe } from '../services/api';
-import RecipeReviewDialog from './RecipeReviewDialog';
+import { getRecipe, parseRecipeWithAI, scrapeRecipe, reviewRecipe } from '../services/api';
+import RecipeConfirmationDialog from './RecipeConfirmationDialog';
+
+// Turn a saved ingredient back into an editable line, keeping its preparation note
+function ingredientToLine(i) {
+  if (typeof i === 'string') return i;
+  const main = [i.quantity, i.unit, i.name].filter((v) => v !== null && v !== undefined && v !== '').join(' ');
+  return i.modifier ? `${main}, ${i.modifier}` : main;
+}
 
 export default function RecipeForm() {
   const navigate = useNavigate();
@@ -12,105 +19,70 @@ export default function RecipeForm() {
   const [ingredients, setIngredients] = useState('');
   const [instructions, setInstructions] = useState('');
   const [tags, setTags] = useState('');
-  
-  // New state for AI/Scraping features
+  const [servings, setServings] = useState('');
+
   const [aiText, setAiText] = useState('');
   const [scrapeUrl, setScrapeUrl] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [parsedRecipe, setParsedRecipe] = useState(null);
-  const [sourceType, setSourceType] = useState('ai');
 
   useEffect(() => {
     if (isEdit) {
       getRecipe(id).then((data) => {
         setTitle(data.title || '');
-        // Handle ingredients - they might be objects or strings
-        const ingredientText = (data.ingredients || []).map((i) => {
-          if (typeof i === 'string') return i;
-          return `${i.quantity || ''} ${i.unit || ''} ${i.name}`.trim();
-        }).join('\n');
-        setIngredients(ingredientText);
+        setIngredients((data.ingredients || []).map(ingredientToLine).join('\n'));
         setInstructions(Array.isArray(data.instructions) ? data.instructions.join('\n') : (data.instructions || ''));
         setTags(Array.isArray(data.tags) ? data.tags.join(', ') : (data.tags || ''));
+        setServings(data.servings || '');
       }).catch(error => {
         console.error('Error loading recipe:', error);
       });
     }
   }, [id, isEdit]);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    const ingredientLines = ingredients.split('\n').map((l) => l.trim()).filter(Boolean);
-    const instructionLines = instructions.split('\n').map((l) => l.trim()).filter(Boolean);
-    const tagList = tags.split(',').map((t) => t.trim()).filter(Boolean);
-    
-    // Convert ingredients to proper structure
-    const structuredIngredients = ingredientLines.map((line) => {
-      // Try to parse the ingredient line
-      const parts = line.split(' ');
-      if (parts.length >= 2 && !isNaN(parts[0])) {
-        // If first part is a number, it might be quantity
-        const quantity = parseFloat(parts[0]);
-        const unit = parts[1] || '';
-        const name = parts.slice(2).join(' ') || line;
-        return { quantity, unit, name };
-      }
-      return { quantity: null, unit: '', name: line };
-    });
-    
-    const data = {
-      title,
-      ingredients: structuredIngredients,
-      instructions: instructionLines,
-      tags: tagList,
-    };
-    
-    if (isEdit) {
-      await updateRecipe(id, data);
-    } else {
-      await createRecipe(data);
+  async function openReview(fn) {
+    setIsProcessing(true);
+    try {
+      const result = await fn();
+      setParsedRecipe(result);
+      setShowReviewDialog(true);
+    } catch (error) {
+      console.error('Processing failed:', error);
+      alert(error.message || 'Something went wrong. Please try again.');
+    } finally {
+      setIsProcessing(false);
     }
-    navigate('/');
   }
 
-  const handleAIParse = async () => {
+  // Typed-in recipes go through the same ingredient check as imports before saving
+  function handleSubmit(e) {
+    e.preventDefault();
+    openReview(() =>
+      reviewRecipe({
+        id: isEdit ? id : undefined,
+        title,
+        ingredients: ingredients.split('\n').map((l) => l.trim()).filter(Boolean),
+        instructions: instructions.split('\n').map((l) => l.trim()).filter(Boolean),
+        tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
+        servings: servings || undefined,
+      })
+    );
+  }
+
+  const handleAIParse = () => {
     if (!aiText.trim()) return;
-    
-    setIsProcessing(true);
-    try {
-      const result = await parseRecipeWithAI(aiText);
-      setParsedRecipe(result);
-      setSourceType('ai');
-      setShowReviewDialog(true);
-    } catch (error) {
-      console.error('AI parsing failed:', error);
-      alert('Failed to parse recipe with AI. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
+    openReview(() => parseRecipeWithAI(aiText));
   };
 
-  const handleScrape = async () => {
+  const handleScrape = () => {
     if (!scrapeUrl.trim()) return;
-    
-    setIsProcessing(true);
-    try {
-      const result = await scrapeRecipe(scrapeUrl);
-      setParsedRecipe(result);
-      setSourceType('scrape');
-      setShowReviewDialog(true);
-    } catch (error) {
-      console.error('Scraping failed:', error);
-      alert('Failed to scrape recipe. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
+    openReview(() => scrapeRecipe(scrapeUrl));
   };
 
-  const handleRecipeSaved = (savedRecipe) => {
-    // Recipe was saved successfully, navigate to recipe list
-    navigate('/');
+  const handleRecipeSaved = (saved) => {
+    setShowReviewDialog(false);
+    navigate(saved && saved.id ? `/recipe/${saved.id}` : '/');
   };
 
   const handleReviewClose = () => {
@@ -186,23 +158,28 @@ export default function RecipeForm() {
             Tags (comma separated)
             <input type="text" value={tags} onChange={(e) => setTags(e.target.value)} />
           </label>
+          <label>
+            Servings
+            <input type="number" min="1" value={servings} onChange={(e) => setServings(e.target.value)} placeholder="4" />
+          </label>
           <div className="form-actions">
-            <button type="submit" className="primary">{isEdit ? 'Update' : 'Create'}</button>
+            <button type="submit" className="primary" disabled={isProcessing}>
+              {isProcessing ? 'Checking ingredients…' : isEdit ? 'Review & Update' : 'Review & Create'}
+            </button>
             <button type="button" onClick={() => navigate('/')} className="secondary">Cancel</button>
           </div>
         </form>
       </div>
 
       {/* Recipe Review Dialog */}
-      <RecipeReviewDialog
+      <RecipeConfirmationDialog
+        recipe={parsedRecipe}
         isOpen={showReviewDialog}
         onClose={handleReviewClose}
-        parsedRecipe={parsedRecipe}
-        onRecipeSaved={handleRecipeSaved}
-        sourceType={sourceType}
+        onConfirm={handleRecipeSaved}
       />
 
-      <style jsx>{`
+      <style>{`
         .recipe-form-container {
           max-width: 800px;
           margin: 0 auto;

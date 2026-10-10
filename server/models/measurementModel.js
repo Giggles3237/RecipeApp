@@ -91,7 +91,7 @@ async function findMeasurement(unitName) {
   // Common aliases mapping
   const aliases = {
     'teaspoon': 'tsp', 'teaspoons': 'tsp', 't': 'tsp',
-    'tablespoon': 'tbsp', 'tablespoons': 'tbsp', 'T': 'tbsp', 'tb': 'tbsp',
+    'tablespoon': 'tbsp', 'tablespoons': 'tbsp', 'tb': 'tbsp', 'tbs': 'tbsp', 'tbl': 'tbsp', 'tbsps': 'tbsp', 'tsps': 'tsp',
     'cups': 'cup', 'c': 'cup',
     'ounce': 'oz', 'ounces': 'oz',
     'pound': 'lb', 'pounds': 'lb', 'lbs': 'lb',
@@ -113,14 +113,39 @@ async function findMeasurement(unitName) {
     'ea': 'each', 'each': 'each'
   };
   
-  const searchName = aliases[normalized] || normalized;
+  // Capital "T" means tablespoon; lowercase "t" means teaspoon — check before lowercasing
+  const trimmed = unitName.trim().replace(/\.$/, '');
+  const searchName = trimmed === 'T' || trimmed === 'Tbs' || trimmed === 'Tbsp'
+    ? 'tbsp'
+    : aliases[normalized.replace(/\.$/, '')] || normalized.replace(/\.$/, '');
   
   const [rows] = await db.query(
     'SELECT * FROM measurements WHERE LOWER(name) = ? OR LOWER(display_name) = ?',
     [searchName, searchName]
   );
-  
-  return rows[0] || null;
+  if (rows[0]) return rows[0];
+
+  // Plural display names ("teaspoons") and aliases saved in the database
+  const singular = searchName.endsWith('s') ? searchName.slice(0, -1) : searchName;
+  const [more] = await db.query(
+    "SELECT * FROM measurements WHERE LOWER(display_name) = ? OR CONCAT(',', LOWER(REPLACE(IFNULL(aliases, ''), ', ', ',')), ',') LIKE ? LIMIT 1",
+    [singular, `%,${searchName.replace(/[\\%_]/g, (c) => '\\' + c)},%`]
+  );
+  return more[0] || null;
+}
+
+// Add an alternate spelling to a measurement (e.g. "tbs" -> tbsp)
+async function addAlias(id, alias) {
+  const clean = String(alias || '').toLowerCase().trim().replace(/,/g, ' ');
+  if (!clean) return null;
+  const [rows] = await db.query('SELECT * FROM measurements WHERE id = ?', [id]);
+  const m = rows[0];
+  if (!m) return null;
+  const aliases = String(m.aliases || '').split(',').map((a) => a.trim()).filter(Boolean);
+  if (m.name.toLowerCase() === clean || aliases.map((a) => a.toLowerCase()).includes(clean)) return m;
+  aliases.push(clean);
+  await db.query('UPDATE measurements SET aliases = ? WHERE id = ?', [aliases.join(','), id]);
+  return { ...m, aliases: aliases.join(',') };
 }
 
 // Convert between units of the same category
@@ -164,6 +189,7 @@ module.exports = {
   initializeMeasurements,
   getAllMeasurements,
   findMeasurement,
+  addAlias,
   convertUnits,
   createMeasurement,
   updateMeasurement,
