@@ -1,136 +1,57 @@
-const API_BASE = 'http://localhost:5000/api';
+// Where the API lives. Set REACT_APP_API_URL in client/.env or in Netlify's environment settings.
+const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace(/\/$/, '');
 
-export async function fetchRecipes() {
-  const res = await fetch(`${API_BASE}/recipes`);
-  return res.json();
-}
-
-export async function getRecipe(id) {
-  const res = await fetch(`${API_BASE}/recipes/${id}`);
-  return res.json();
-}
-
-export async function createRecipe(data) {
-  const res = await fetch(`${API_BASE}/recipes`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+// Throws an Error with the server's message (and .status / .data) when the request fails.
+async function request(path, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: options.body ? { 'Content-Type': 'application/json', ...(options.headers || {}) } : options.headers,
   });
-  return res.json();
-}
-
-export async function updateRecipe(id, data) {
-  const res = await fetch(`${API_BASE}/recipes/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  return res.json();
-}
-
-export async function deleteRecipe(id) {
-  const res = await fetch(`${API_BASE}/recipes/${id}`, { method: 'DELETE' });
-  return res.json();
-}
-
-export async function parseRecipeWithAI(text) {
-  const res = await fetch(`${API_BASE}/recipes/ai`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text }),
-  });
-  return res.json();
-}
-
-export async function scrapeRecipe(url, useAI = false) {
-  const res = await fetch(`${API_BASE}/recipes/scrape`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url, useAI }),
-  });
-  return res.json();
-}
-
-export async function generateGroceries(recipeIds, scaleFactor = 1, profileId) {
-  console.log('API: generateGroceries called with:', { recipeIds, scaleFactor, profileId });
-  const res = await fetch(`${API_BASE}/groceries`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ recipeIds, scaleFactor, profileId }),
-  });
-  console.log('API: Response status:', res.status);
-  const data = await res.json();
-  console.log('API: Response data:', data);
+  let data = null;
+  const text = await res.text();
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch (_) {
+    data = { error: text };
+  }
+  if (!res.ok) {
+    const err = new Error((data && data.error) || `Request failed (${res.status})`);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
   return data;
 }
 
-export async function scaleRecipe(id, scaleFactor) {
-  const res = await fetch(`${API_BASE}/recipes/${id}/scale`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scaleFactor }),
-  });
-  return res.json();
+const post = (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) });
+
+export const fetchRecipes = () => request('/recipes');
+export const getRecipe = (id) => request(`/recipes/${id}`);
+export const createRecipe = (data) => post('/recipes', data);
+export const updateRecipe = (id, data) => request(`/recipes/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteRecipe = (id) => request(`/recipes/${id}`, { method: 'DELETE' });
+export const scaleRecipe = (id, scaleFactor) => post(`/recipes/${id}/scale`, { scaleFactor });
+
+/* ---- Recipe intake: each returns a recipe ready for the review dialog ---- */
+export const parseRecipeWithAI = (text) => post('/recipes/ai', { text });
+export const scrapeRecipe = (url, useAI = false) => post('/recipes/scrape', { url, useAI });
+export const importRecipeFromPhotos = (images) => post('/recipes/photo', { images });
+// Runs a hand-typed recipe through the same ingredient consistency check
+export const reviewRecipe = (recipe) => post('/recipes/review', recipe);
+// Saves after review. Creates a new recipe, or updates when recipeData.id is set.
+export const confirmRecipe = (recipeData) => post('/recipes/confirm', recipeData);
+
+export async function generateGroceries(recipeIds, scaleFactor = 1, profileId) {
+  return post('/groceries', { recipeIds, scaleFactor, profileId });
 }
 
-export async function fetchMeasurements() {
-  const res = await fetch(`${API_BASE}/measurements`);
-  return res.json();
-}
-
-export async function fetchIngredients(category = null) {
-  const url = category ? `${API_BASE}/ingredients?category=${category}` : `${API_BASE}/ingredients`;
-  const res = await fetch(url);
-  return res.json();
-}
-
-export async function fetchIngredientCategories() {
-  const res = await fetch(`${API_BASE}/ingredients/categories`);
-  return res.json();
-}
-
-export async function createMeasurement(data) {
-  const res = await fetch(`${API_BASE}/measurements`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  return res.json();
-}
-
-export async function createIngredient(data) {
-  const res = await fetch(`${API_BASE}/ingredients`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  return res.json();
-}
-
-export async function confirmRecipe(recipeData) {
-  console.log('Sending recipe data to confirm:', recipeData);
-  
-  const res = await fetch(`${API_BASE}/recipes/confirm`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(recipeData),
-  });
-  
-  console.log('Response status:', res.status);
-  console.log('Response headers:', res.headers);
-  
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error('Server error response:', errorText);
-    throw new Error(`Server error: ${res.status} - ${errorText}`);
-  }
-  
-  const contentType = res.headers.get('content-type');
-  if (!contentType || !contentType.includes('application/json')) {
-    const responseText = await res.text();
-    console.error('Non-JSON response received:', responseText);
-    throw new Error(`Expected JSON response but got: ${contentType}`);
-  }
-  
-  return res.json();
-}
+/* ---- Ingredients & units ---- */
+export const fetchMeasurements = () => request('/measurements');
+export const fetchIngredients = (category = null) =>
+  request(category ? `/ingredients?category=${encodeURIComponent(category)}` : '/ingredients');
+export const fetchIngredientCategories = () => request('/ingredients/categories');
+// These reject with err.status === 409 and err.data.duplicateOf when it looks like a duplicate.
+export const createMeasurement = (data) => post('/measurements', data);
+export const createIngredient = (data) => post('/ingredients', data);
+export const addIngredientAlias = (id, alias) => post(`/ingredients/${id}/aliases`, { alias });
+export const addMeasurementAlias = (id, alias) => post(`/measurements/${id}/aliases`, { alias });

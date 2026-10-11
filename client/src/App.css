@@ -746,3 +746,11 @@ button.secondary {
     gap: 10px;
   }
 }
+
+/* Phone layout: let the menu wrap instead of running off the screen */
+@media (max-width: 700px) {
+  .navbar { flex-direction: column; align-items: flex-start; padding: 10px 16px; }
+  .navbar h1 { font-size: 1.4rem; margin: 4px 0 8px; }
+  .navbar ul { flex-wrap: wrap; gap: 8px 14px; padding: 0; }
+  .container { padding-left: 16px; padding-right: 16px; box-sizing: border-box; max-width: 100%; }
+}

@@ -31,8 +31,13 @@ export default function RecipeList() {
   }, [recipes, searchTerm, sortBy, sortOrder]);
 
   async function load() {
-    const data = await fetchRecipes();
-    setRecipes(data);
+    try {
+      const data = await fetchRecipes();
+      setRecipes(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error loading recipes:', err);
+      setRecipes([]);
+    }
   }
 
   function filterAndSortRecipes() {

@@ -122,20 +122,51 @@ async function getIngredientsByCategory(category) {
   return rows;
 }
 
+function escapeLike(s) {
+  return String(s).replace(/[\\%_]/g, (c) => '\\' + c);
+}
+
+// Exact match on name or on one whole alias (no fuzzy matching).
+async function findIngredientExact(ingredientName) {
+  if (!ingredientName) return null;
+  const normalized = ingredientName.toLowerCase().trim();
+  const [byName] = await db.query('SELECT * FROM ingredients WHERE LOWER(name) = ? LIMIT 1', [normalized]);
+  if (byName[0]) return byName[0];
+  const [byAlias] = await db.query(
+    "SELECT * FROM ingredients WHERE CONCAT(',', LOWER(REPLACE(aliases, ', ', ',')), ',') LIKE ? LIMIT 1",
+    [`%,${escapeLike(normalized)},%`]
+  );
+  return byAlias[0] || null;
+}
+
+// Add an alternate name to an ingredient so future imports match it directly.
+async function addAlias(id, alias) {
+  const clean = String(alias || '').toLowerCase().trim().replace(/,/g, ' ');
+  if (!clean) return null;
+  const [rows] = await db.query('SELECT * FROM ingredients WHERE id = ?', [id]);
+  const ing = rows[0];
+  if (!ing) return null;
+  if (ing.name.toLowerCase() === clean) return ing;
+  const aliases = String(ing.aliases || '')
+    .split(',')
+    .map((a) => a.trim())
+    .filter(Boolean);
+  if (aliases.map((a) => a.toLowerCase()).includes(clean)) return ing;
+  aliases.push(clean);
+  await db.query('UPDATE ingredients SET aliases = ? WHERE id = ?', [aliases.join(','), id]);
+  return { ...ing, aliases: aliases.join(',') };
+}
+
 // Find ingredient by name (including aliases)
 async function findIngredient(ingredientName) {
   if (!ingredientName) return null;
-  
+
   const normalized = ingredientName.toLowerCase().trim();
-  
-  // First try exact match
-  const [exactMatch] = await db.query(
-    'SELECT * FROM ingredients WHERE LOWER(name) = ?',
-    [normalized]
-  );
-  
-  if (exactMatch[0]) return exactMatch[0];
-  
+
+  // First try exact name or exact alias
+  const exact = await findIngredientExact(normalized);
+  if (exact) return exact;
+
   // Then try alias search
   const [aliasMatch] = await db.query(
     'SELECT * FROM ingredients WHERE LOWER(aliases) LIKE ?',
@@ -210,6 +241,8 @@ module.exports = {
   getAllIngredients,
   getIngredientsByCategory,
   findIngredient,
+  findIngredientExact,
+  addAlias,
   suggestIngredientName,
   createIngredient,
   updateIngredient,

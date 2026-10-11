@@ -7,6 +7,8 @@ import RecipeScraper from './components/RecipeScraper';
 import RecipeDisplay from './components/RecipeDisplay';
 import GroceryList from './components/GroceryList';
 import MealPlanner from './components/MealPlanner';
+import StandardizationAdmin from './components/StandardizationAdmin';
+import RecipeScaler from './components/RecipeScaler';
 import './App.css';
 
 function App() {
@@ -22,6 +24,8 @@ function App() {
           <Route path="/scrape" element={<RecipeScraper />} />
           <Route path="/groceries" element={<GroceryList />} />
           <Route path="/meal-planner" element={<MealPlanner />} />
+          <Route path="/admin" element={<StandardizationAdmin />} />
+          <Route path="/recipe/:id/scale" element={<RecipeScaler />} />
         </Routes>
       </div>
     </div>

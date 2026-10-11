@@ -18,7 +18,9 @@ export default function MealPlanner() {
   });
 
   useEffect(() => {
-    fetchRecipes().then((data) => setRecipes(data));
+    fetchRecipes()
+      .then((data) => setRecipes(Array.isArray(data) ? data : []))
+      .catch((err) => console.error('Error loading recipes:', err));
   }, []);
 
   function handleDragStart(e, recipe) {
