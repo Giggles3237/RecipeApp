@@ -7,6 +7,9 @@ const standardizationService = require('./services/standardizationService');
 
 const app = express();
 
+// Behind Azure's load balancer: use the real visitor IP (needed for the AI rate limit)
+app.set('trust proxy', 1);
+
 // CORS: only allow the sites listed in ALLOWED_ORIGINS. If unset (local dev), allow all.
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')

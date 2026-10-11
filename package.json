@@ -1,0 +1,12 @@
+{
+  "name": "recipe-app",
+  "private": true,
+  "description": "Deploy entry point: Azure App Service runs the API server from server/. The React client is deployed separately on Netlify.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "postinstall": "cd server && PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1 PUPPETEER_SKIP_DOWNLOAD=1 npm ci --omit=dev",
+    "start": "node server/server.js"
+  }
+}
