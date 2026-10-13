@@ -81,25 +81,54 @@ async function assertPublicUrl(rawUrl) {
   return url;
 }
 
+// Look like a normal browser: many recipe sites turn away requests that don't.
+const BROWSER_HEADERS = {
+  'User-Agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Cache-Control': 'no-cache',
+  'Upgrade-Insecure-Requests': '1',
+};
+
 // Fetch a public page as text, re-checking every redirect hop, with a timeout and size cap.
 async function fetchPublicPage(rawUrl, { maxBytes = 3 * 1024 * 1024, timeoutMs = 15000, maxRedirects = 5 } = {}) {
   const fetchFn = typeof fetch !== 'undefined' ? fetch : (await import('node-fetch')).default;
   let current = rawUrl;
   for (let hop = 0; hop <= maxRedirects; hop++) {
     const url = await assertPublicUrl(current);
-    const res = await fetchFn(url.toString(), {
-      redirect: 'manual',
-      signal: AbortSignal.timeout(timeoutMs),
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; RecipeApp/1.0)',
-        Accept: 'text/html,application/xhtml+xml',
-      },
-    });
+    let res;
+    try {
+      res = await fetchFn(url.toString(), {
+        redirect: 'manual',
+        signal: AbortSignal.timeout(timeoutMs),
+        headers: BROWSER_HEADERS,
+      });
+    } catch (e) {
+      const err = new Error(
+        e && (e.name === 'TimeoutError' || e.name === 'AbortError')
+          ? `${url.hostname} took too long to respond. Try again, or use a screenshot with "From a photo".`
+          : `Couldn't connect to ${url.hostname}. Check the link and try again.`
+      );
+      err.status = 422;
+      throw err;
+    }
     if (res.status >= 300 && res.status < 400 && res.headers.get('location')) {
       current = new URL(res.headers.get('location'), url).toString();
       continue;
     }
-    if (!res.ok) throw new Error(`Failed to fetch page: ${res.status}`);
+    if (!res.ok) {
+      const blocked = [401, 403, 429, 451, 503].includes(res.status);
+      const err = new Error(
+        blocked
+          ? `${url.hostname} blocked the app from reading this page (error ${res.status}). ` +
+            'Some recipe sites do this. Take a screenshot of the recipe and use "From a photo", ' +
+            'or copy the recipe text and use "From pasted text".'
+          : `Couldn't open that page (error ${res.status}). Check the link and try again.`
+      );
+      err.status = 422;
+      throw err;
+    }
     const length = Number(res.headers.get('content-length') || 0);
     if (length > maxBytes) throw new Error('Page is too large to read.');
     const text = await res.text();
@@ -108,4 +137,4 @@ async function fetchPublicPage(rawUrl, { maxBytes = 3 * 1024 * 1024, timeoutMs =
   throw new Error('Too many redirects.');
 }
 
-module.exports = { assertPublicUrl, fetchPublicPage, isBlockedAddress, UnsafeUrlError };
+module.exports = { assertPublicUrl, fetchPublicPage, BROWSER_HEADERS, isBlockedAddress, UnsafeUrlError };

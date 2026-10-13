@@ -197,7 +197,11 @@ router.post('/recipes/scrape', aiRateLimit, async (req, res) => {
     // 1. Dedicated scraper library (fast, supports many big recipe sites)
     if (!useAI) {
       try {
-        const r = await recipeScraper(url);
+        // The library can hang on some sites; give up after 20s and use the steps below
+        const r = await Promise.race([
+          recipeScraper(url),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('scraper timed out')), 20000)),
+        ]);
         if (r && Array.isArray(r.ingredients) && r.ingredients.length) {
           extracted = {
             title: r.name || 'Untitled',
@@ -222,7 +226,9 @@ router.post('/recipes/scrape', aiRateLimit, async (req, res) => {
     // 3. Let the AI read the page text
     if (!extracted) {
       if (!ai.isEnabled()) {
-        return res.status(422).json({ error: 'Could not find a recipe on that page.' });
+        return res.status(422).json({
+          error: 'Could not find a recipe on that page. Try a screenshot with "From a photo" instead.',
+        });
       }
       extracted = await ai.extractRecipe({ text: truncateText(stripHtmlToText(pageHtml), 20000) });
     }
