@@ -118,7 +118,7 @@ async function fetchPublicPage(rawUrl, { maxBytes = 3 * 1024 * 1024, timeoutMs =
       continue;
     }
     if (!res.ok) {
-      const blocked = [401, 403, 429, 451, 503].includes(res.status);
+      const blocked = [401, 402, 403, 429, 451, 503].includes(res.status);
       const err = new Error(
         blocked
           ? `${url.hostname} blocked the app from reading this page (error ${res.status}). ` +
