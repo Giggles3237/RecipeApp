@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const recipeScraper = require('@brandonrjguth/recipe-scraper');
+const OpenAI = require('openai');
 const recipeModel = require('../models/recipeModel');
 const categoryModel = require('../models/categoryModel');
 const ingredientModel = require('../models/ingredientModel');
@@ -31,6 +32,18 @@ function serializeRecipe(r) {
 }
 
 function sendError(res, err, fallbackMessage) {
+  // OpenAI errors carry an HTTP status too, but their text can include part of the API key.
+  // Translate them instead of passing them to the browser.
+  if (err instanceof OpenAI.APIError) {
+    console.error('OpenAI error:', err.status, err.message);
+    const msg =
+      err.status === 401
+        ? "The server's OpenAI API key is invalid. Update OPENAI_API_KEY in the server settings."
+        : err.status === 429
+        ? 'OpenAI usage limit reached. Check billing/credits on platform.openai.com, then try again.'
+        : 'The AI service had a problem. Please try again in a minute.';
+    return res.status(502).json({ error: msg });
+  }
   const status = err && err.status && err.status < 500 ? err.status : 500;
   if (status === 500) console.error(fallbackMessage, err);
   res.status(status).json({ error: status === 500 ? fallbackMessage : err.message });
@@ -197,7 +210,11 @@ router.post('/recipes/scrape', aiRateLimit, async (req, res) => {
     // 1. Dedicated scraper library (fast, supports many big recipe sites)
     if (!useAI) {
       try {
-        const r = await recipeScraper(url);
+        // The library can hang on some sites; give up after 20s and use the steps below
+        const r = await Promise.race([
+          recipeScraper(url),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('scraper timed out')), 20000)),
+        ]);
         if (r && Array.isArray(r.ingredients) && r.ingredients.length) {
           extracted = {
             title: r.name || 'Untitled',
@@ -222,7 +239,9 @@ router.post('/recipes/scrape', aiRateLimit, async (req, res) => {
     // 3. Let the AI read the page text
     if (!extracted) {
       if (!ai.isEnabled()) {
-        return res.status(422).json({ error: 'Could not find a recipe on that page.' });
+        return res.status(422).json({
+          error: 'Could not find a recipe on that page. Try a screenshot with "From a photo" instead.',
+        });
       }
       extracted = await ai.extractRecipe({ text: truncateText(stripHtmlToText(pageHtml), 20000) });
     }
